@@ -15,12 +15,13 @@ from .managers import AnnotationManager, Seq2seqAnnotationManager
 DOCUMENT_CLASSIFICATION = 'DocumentClassification'
 SEQUENCE_LABELING = 'SequenceLabeling'
 SEQ2SEQ = 'Seq2seq'
+CONVERSATIONS = 'Conversations'
 PROJECT_CHOICES = (
     (DOCUMENT_CLASSIFICATION, 'document classification'),
     (SEQUENCE_LABELING, 'sequence labeling'),
     (SEQ2SEQ, 'sequence to sequence'),
+    (CONVERSATIONS, 'Conversations validation and labelling')
 )
-
 
 class Project(PolymorphicModel):
     name = models.CharField(max_length=100)
@@ -142,6 +143,34 @@ class Seq2seqProject(Project):
         from .utils import Seq2seqStorage
         return Seq2seqStorage(data, self)
 
+class ConversationsProject(Project):
+
+    @property
+    def image(self):
+        return staticfiles_storage.url('assets/images/cats/seq2seq.jpg')
+
+    def get_bundle_name(self):
+        return 'conversations'
+
+    def get_bundle_name_upload(self):
+        return 'upload_conversations'
+ 
+    def get_bundle_name_download(self):
+        return 'download_conversations'
+
+    def get_annotation_serializer(self):
+        raise NotImplementedError()
+        #from .serializers import Seq2seqAnnotationSerializer
+        #return Seq2seqAnnotationSerializer
+
+    def get_annotation_class(self):
+        raise NotImplementedError()
+        # return Seq2seqAnnotation
+
+    def get_storage(self, data):
+        raise NotImplementedError()
+        #from .utils import Seq2seqStorage
+        #return Seq2seqStorage(data, self)
 
 class Label(models.Model):
     PREFIX_KEYS = (
@@ -195,6 +224,16 @@ class Document(models.Model):
     def __str__(self):
         return self.text[:50]
 
+class Conversation(models.Model):
+    project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
+    meta = models.TextField(default='{}')
+    audio_url = models.TextField(default='', null=False)
+    audio_file = models.FileField(null=False)
+
+class ConversationItem(Document):
+    conversation = models.ForeignKey(Conversation, related_name='conversation_item', on_delete=models.CASCADE)
+    start_timestamp = models.TimeField()
+    end_timestamp = models.TimeField()
 
 class Annotation(models.Model):
     objects = AnnotationManager()
@@ -241,6 +280,15 @@ class Seq2seqAnnotation(Annotation):
     class Meta:
         unique_together = ('document', 'user', 'text')
 
+class ConversationItemAnnotation(Annotation):
+    conversation = models.ForeignKey(ConversationItem, related_name='conversation_annotation',on_delete=models.CASCADE)
+    text = models.TextField()
+    start_offset = models.IntegerField()
+    end_offset = models.IntegerField()   
+    label = models.ForeignKey(Label, on_delete=models.CASCADE) 
+
+    class Meta:
+        unique_together = ('start_offset', 'end_offset', 'label', 'conversation')
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
