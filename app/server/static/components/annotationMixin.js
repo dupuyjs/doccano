@@ -160,6 +160,7 @@ export default {
 
     async search() {
       await HTTP.get(this.url).then((response) => {
+        console.log(response.data.results);
         this.docs = response.data.results;
         this.next = removeHost(response.data.next);
         this.prev = removeHost(response.data.previous);
