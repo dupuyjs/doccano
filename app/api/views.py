@@ -161,10 +161,6 @@ class DocumentList(generics.ListCreateAPIView):
         queryset = project.documents
         if project.randomize_document_order:
             queryset = queryset.annotate(sort_id=F('id') % self.request.user.id).order_by('sort_id')
-        
-        conversation = self.request.query_params.get('conversation', None)
-        if conversation is not None:
-            queryset = queryset.filter(conversationitem__conversation__exact=conversation)
 
         return queryset
 
