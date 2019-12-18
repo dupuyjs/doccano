@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_delete
 from django.urls import reverse
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.contrib.auth.models import User
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ValidationError
@@ -161,18 +162,15 @@ class ConversationsProject(Project):
         return 'download_conversations'
 
     def get_annotation_serializer(self):
-        # from .serializers import ConversationAnnotationSerializer
-        # return ConversationAnnotationSerializer
-        raise NotImplementedError()
+        from .serializers import ConversationItemAnnotationSerializer
+        return ConversationItemAnnotationSerializer
 
     def get_annotation_class(self):
-        # return ConversationItemAnnotation
-        raise NotImplementedError()
+        return ConversationItemAnnotation
 
     def get_storage(self, data):
-        raise NotImplementedError()
-        #from .utils import Seq2seqStorage
-        #return Seq2seqStorage(data, self)
+        from .utils import ConversationStorage
+        return ConversationStorage(data, self)
 
 
 class Label(models.Model):
@@ -216,7 +214,7 @@ class Label(models.Model):
         )
 
 
-class Document(models.Model):
+class Document(PolymorphicModel):
     text = models.TextField()
     project = models.ForeignKey(Project, related_name='documents', on_delete=models.CASCADE)
     meta = models.TextField(default='{}')
@@ -230,17 +228,18 @@ class Document(models.Model):
 
 class Conversation(models.Model):
     project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
-    meta = models.TextField(default='{}')
+    meta = JSONField(null=False, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     audio_url = models.TextField(default='', null=False)
-    audio_file = models.FileField(null=False)
+    audio_file = models.FileField(upload_to='audio', null=False, blank=False)
 
 
 class ConversationItem(Document):
-    conversation = models.ForeignKey(Conversation, related_name='conversation_item', on_delete=models.CASCADE)
-    start_timestamp = models.TimeField()
-    end_timestamp = models.TimeField()
+    conversation = models.ForeignKey(Conversation, related_name='conversation_items', on_delete=models.CASCADE)
+    start_time = models.FloatField()
+    end_time = models.FloatField()
+    machine_text = models.TextField()
 
 
 class Annotation(models.Model):
@@ -288,6 +287,15 @@ class Seq2seqAnnotation(Annotation):
     class Meta:
         unique_together = ('document', 'user', 'text')
 
+class ConversationItemAnnotation(Annotation):
+    document = models.ForeignKey(Document, related_name='conversation_annotations',on_delete=models.CASCADE)
+    label = models.ForeignKey(Label, on_delete=models.CASCADE) 
+    text = models.TextField()
+    start_offset = models.IntegerField()
+    end_offset = models.IntegerField()   
+
+    class Meta:
+        unique_together = ('start_offset', 'end_offset', 'label', 'document')
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)

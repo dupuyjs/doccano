@@ -16,7 +16,7 @@ from seqeval.metrics.sequence_labeling import get_entities
 
 from .exceptions import FileParseException
 from .models import Label
-from .serializers import DocumentSerializer, LabelSerializer
+from .serializers import DocumentSerializer, LabelSerializer, ConversationSerializer
 
 
 def extract_label(tag):
@@ -216,6 +216,35 @@ class Seq2seqStorage(BaseStorage):
                 annotations.append({'document': doc.id, 'text': text})
         return annotations
 
+
+class ConversationStorage(BaseStorage):
+    """Store json for speech2text with conversation.
+    
+    The format is as follows:
+    {"audioUrl": "https://.....wav", "metadata": { "service": "AzureSpeechAPI", "duration": 30 },"sentences": [{  }, { ... }, ...]}
+    ...
+    """
+    @transaction.atomic
+    def save(self, user):
+        for data in self.data:
+            conversations = self.save_conversations(data)
+
+    def save_conversations(self, data):
+        serializer = ConversationSerializer(data=data, many=True)
+        serializer.is_valid(raise_exception=True)
+        conversation = serializer.save(project=self.project)
+        return conversation
+
+    @classmethod
+    def make_annotations(cls, docs, data):
+        annotations = []
+        for doc, datum in zip(docs, data):
+            try:
+                annotations.append({'document': doc.id, 'text': datum['transcription']})
+            except KeyError:
+                continue
+        return annotations
+        
 
 class FileParser(object):
 

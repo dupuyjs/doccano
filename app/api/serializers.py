@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from .models import Label, Project, Document, RoleMapping, Role, Conversation, ConversationItem
 from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject, ConversationsProject
-from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation
+from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation, ConversationItemAnnotation
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -146,18 +146,64 @@ class ConversationsProjectSerializer(ProjectSerializer):
         read_only_fields = ('image', 'updated_at', 'users', 'current_users_role')
 
 
-class ConversationSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Conversation
-        fields = ('id', 'meta', 'created_at', 'updated_at', 'audio_url', 'audio_file', 'project')
-
-
 class ConversationItemSerializer(DocumentSerializer):
+    startTimeInSeconds = serializers.FloatField(source='start_time')
+    endTimeInSeconds = serializers.FloatField(source='end_time')
+    machineTranscription = serializers.CharField(source='machine_text')
+    humanTranscription = serializers.CharField(source='text')
 
     class Meta:
         model = ConversationItem
-        fields = ('id', 'text', 'annotations', 'meta', 'annotation_approver', 'start_timestamp', 'end_timestamp')
+        fields = ('id', 'startTimeInSeconds', 'endTimeInSeconds', 'machineTranscription', 'humanTranscription', 'conversation', 'annotations', 'annotation_approver')
+
+
+class DocumentPolymorphicSerializer(PolymorphicSerializer):
+    model_serializer_mapping = {
+        Document: DocumentSerializer,
+        ConversationItem: ConversationItemSerializer,
+    }
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    audioFileUrl = serializers.URLField(source='audio_url')
+    metadata = serializers.JSONField(source='meta', required=False)
+    sentences = ConversationItemSerializer(source='conversation_items', many=True)
+    # @FIXME(Jeremie): Hack to be able to save file from audioUrl, a new field shoud be created
+    # following this example : https://github.com/Hipo/drf-extra-fields#base64filefield
+    audioFile = serializers.FileField(source='audio_file', required=False)
+
+    def create(self, validated_data):
+        # As conversation item inherit from documents we need to set the project id
+        if 'conversation_items' in validated_data.keys():
+            validated_data.update({'conversation_items': [
+                {'project': validated_data.get('project'), **item } for item in validated_data.get('conversation_items') ]})
+
+        many_to_many = {}
+        for field_name in ['conversation_items']:
+            if field_name in validated_data:
+                many_to_many[field_name] = validated_data.pop(field_name)
+
+        instance = self.Meta.model.objects.create(**validated_data)
+
+        # Save many-to-many relationships after the instance is created.
+        if many_to_many:
+            for field_name, value in many_to_many.items():
+                if type(value) is list:
+                    for related in value:
+                        field = getattr(instance, field_name)
+                        field.create(**related)
+
+    def validate(self, data):
+        if data.get('audio_url'):
+            # @FIXME(Jeremie): This will probably not scale as this is sync and blocking call
+            res = requests.get(data.get('audio_url'))
+            if res.status_code is 200:
+                data['audio_file'] = ContentFile(res.content, name=f'{uuid.uuid4()}.wav')
+        return data
+
+    class Meta:
+        model = Conversation
+        fields = ('audioFileUrl', 'metadata', 'audioFile', 'sentences')
 
 
 class ProjectPolymorphicSerializer(PolymorphicSerializer):
@@ -210,6 +256,14 @@ class Seq2seqAnnotationSerializer(serializers.ModelSerializer):
         model = Seq2seqAnnotation
         fields = ('id', 'text', 'user', 'document', 'prob')
         read_only_fields = ('user',)
+
+
+class ConversationItemAnnotationSerializer(DocumentAnnotationSerializer):
+    
+    class Meta:
+        model = ConversationItemAnnotation
+        fields = ('id', 'prob', 'label', 'start_offset', 'end_offset', 'user', 'document')
+        read_only_fields = ('user', )
 
 
 class RoleSerializer(serializers.ModelSerializer):

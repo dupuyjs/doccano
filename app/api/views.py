@@ -16,7 +16,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from .filters import DocumentFilter
 from .models import Project, Label, Document, RoleMapping, Role, Conversation
 from .permissions import IsProjectAdmin, IsAnnotatorAndReadOnly, IsAnnotator, IsAnnotationApproverAndReadOnly, IsOwnAnnotation, IsAnnotationApprover
-from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer, ConversationSerializer
+from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer, ConversationSerializer, DocumentPolymorphicSerializer
 from .serializers import ProjectPolymorphicSerializer, RoleMappingSerializer, RoleSerializer
 from .utils import CSVParser, ExcelParser, JSONParser, PlainTextParser, CoNLLParser, iterable_to_io
 from .utils import JSONLRenderer
@@ -143,7 +143,7 @@ class LabelDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 class DocumentList(generics.ListCreateAPIView):
-    serializer_class = DocumentSerializer
+    serializer_class = DocumentPolymorphicSerializer
     filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
     search_fields = ('text', )
     ordering_fields = ('created_at', 'updated_at', 'doc_annotations__updated_at',
@@ -151,7 +151,7 @@ class DocumentList(generics.ListCreateAPIView):
     filter_class = DocumentFilter
     permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
 
-    def get_queryset(self):
+    def get_queryset(self):        
         project = get_object_or_404(Project, pk=self.kwargs['project_id'])
 
         queryset = project.documents
@@ -167,7 +167,7 @@ class DocumentList(generics.ListCreateAPIView):
 
 class DocumentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Document.objects.all()
-    serializer_class = DocumentSerializer
+    serializer_class = DocumentPolymorphicSerializer
     lookup_url_kwarg = 'doc_id'
     permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
 
