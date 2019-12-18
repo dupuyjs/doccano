@@ -82,7 +82,7 @@ export default {
     async submit() {
       if (this.selectedConversationId != 0) {
         const state = this.getState();
-        this.url = `docs?q=${this.searchQuery}&seq_annotations__isnull=${state}&offset=${this.offset}&ordering=${this.ordering}`;
+        this.url = `docs?q=${this.searchQuery}&conversation=${this.selectedConversationId}&seq_annotations__isnull=${state}&offset=${this.offset}&ordering=${this.ordering}`;
         await this.search();
         this.pageNumber = 0;
       }
@@ -97,16 +97,15 @@ export default {
   },
 
   watch: {
-    selectedConversationId: function () {
-      console.log(this.selectedConversationId);
+    selectedConversationId: async function () {
+      await this.submit()
     }
   },
 
-  created() {
+  async created() {
     // Load conversations into drop down
-    HTTP.get('conversations').then((response) => {
-      this.conversations = response.data;
-    });
+    var response = await HTTP.get('conversations')
+    this.conversations = response.data;
   }
 };
 </script>
