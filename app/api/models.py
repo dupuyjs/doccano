@@ -15,10 +15,12 @@ from .managers import AnnotationManager, Seq2seqAnnotationManager
 DOCUMENT_CLASSIFICATION = 'DocumentClassification'
 SEQUENCE_LABELING = 'SequenceLabeling'
 SEQ2SEQ = 'Seq2seq'
+CONVERSATIONS = 'Conversations'
 PROJECT_CHOICES = (
     (DOCUMENT_CLASSIFICATION, 'document classification'),
     (SEQUENCE_LABELING, 'sequence labeling'),
     (SEQ2SEQ, 'sequence to sequence'),
+    (CONVERSATIONS, 'conversations validation and labelling'),
 )
 
 
@@ -143,6 +145,36 @@ class Seq2seqProject(Project):
         return Seq2seqStorage(data, self)
 
 
+class ConversationsProject(Project):
+
+    @property
+    def image(self):
+        return staticfiles_storage.url('assets/images/cats/seq2seq.jpg')
+
+    def get_bundle_name(self):
+        return 'conversations'
+
+    def get_bundle_name_upload(self):
+        return 'upload_conversations'
+ 
+    def get_bundle_name_download(self):
+        return 'download_conversations'
+
+    def get_annotation_serializer(self):
+        # from .serializers import ConversationAnnotationSerializer
+        # return ConversationAnnotationSerializer
+        raise NotImplementedError()
+
+    def get_annotation_class(self):
+        # return ConversationItemAnnotation
+        raise NotImplementedError()
+
+    def get_storage(self, data):
+        raise NotImplementedError()
+        #from .utils import Seq2seqStorage
+        #return Seq2seqStorage(data, self)
+
+
 class Label(models.Model):
     PREFIX_KEYS = (
         ('ctrl', 'ctrl'),
@@ -194,6 +226,16 @@ class Document(models.Model):
 
     def __str__(self):
         return self.text[:50]
+
+
+class Conversation(models.Model):
+    project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
+    documents = models.ForeignKey(Document, related_name = 'conversation', on_delete = models.CASCADE)
+    meta = models.TextField(default='{}')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    audio_url = models.TextField(default='', null=False)
+    audio_file = models.FileField(null=False)
 
 
 class Annotation(models.Model):
