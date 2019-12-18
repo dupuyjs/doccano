@@ -80,16 +80,16 @@ export default {
     },
 
     async submit() {
-      //if (this.selectedConversationId != 0) {
+      if (this.selectedConversationId != 0) {
         const state = this.getState();
         this.url = `docs?q=${this.searchQuery}&seq_annotations__isnull=${state}&offset=${this.offset}&ordering=${this.ordering}`;
         await this.search();
         this.pageNumber = 0;
-      //}
+      }
     },
 
     parseTitle(conversation) {
-      var c = JSON.parse(conversation.meta);
+      var c = JSON.parse(conversation.metadata);
       if (c.service !== undefined)
         return c.service;
       else return `Conversation ${c.id}`;

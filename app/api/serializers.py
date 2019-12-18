@@ -203,7 +203,7 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ('audioFileUrl', 'metadata', 'audioFile', 'sentences')
+        fields = ('id', 'audioFileUrl', 'metadata', 'audioFile', 'sentences')
 
 
 class ProjectPolymorphicSerializer(PolymorphicSerializer):
