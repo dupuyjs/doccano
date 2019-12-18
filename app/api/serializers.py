@@ -1,12 +1,14 @@
+import requests, uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.core.files.base import ContentFile
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 from rest_framework.exceptions import ValidationError
 
 
-from .models import Label, Project, Document, RoleMapping, Role
+from .models import Label, Project, Document, RoleMapping, Role, ConversationItem, Conversation
 from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject, ConversationsProject
 from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation
 
@@ -83,6 +85,59 @@ class DocumentSerializer(serializers.ModelSerializer):
         model = Document
         fields = ('id', 'text', 'annotations', 'meta', 'annotation_approver')
 
+
+
+class ConversationItemSerializer(DocumentSerializer):
+    startTimeInSeconds = serializers.FloatField(source='start_time')
+    endTimeInSeconds = serializers.FloatField(source='end_time')
+    machineTranscription = serializers.CharField(source='machine_text')
+    humanTranscription = serializers.CharField(source='text')
+
+    class Meta:
+        model = ConversationItem
+        fields = ('startTimeInSeconds', 'endTimeInSeconds', 'machineTranscription', 'humanTranscription')
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    audioFileUrl = serializers.URLField(source='audio_url')
+    metadata = serializers.JSONField(source='meta', required=False)
+    sentences = ConversationItemSerializer(source='conversation_items', many=True)
+    # @FIXME(Jeremie): Hack to be able to save file from audioUrl, a new field shoud be created
+    # following this example : https://github.com/Hipo/drf-extra-fields#base64filefield
+    audioFile = serializers.FileField(source='audio_file', required=False)
+
+    def create(self, validated_data):
+        # As conversation item inherit from documents we need to set the project id
+        if 'conversation_items' in validated_data.keys():
+            validated_data.update({'conversation_items': [
+                {'project': validated_data.get('project'), **item } for item in validated_data.get('conversation_items') ]})
+
+        many_to_many = {}
+        for field_name in ['conversation_items']:
+            if field_name in validated_data:
+                many_to_many[field_name] = validated_data.pop(field_name)
+
+        instance = self.Meta.model.objects.create(**validated_data)
+
+        # Save many-to-many relationships after the instance is created.
+        if many_to_many:
+            for field_name, value in many_to_many.items():
+                if type(value) is list:
+                    for related in value:
+                        field = getattr(instance, field_name)
+                        field.create(**related)
+
+    def validate(self, data):
+        if data.get('audio_url'):
+            # @FIXME(Jeremie): This will probably not scale as this is sync and blocking call
+            res = requests.get(data.get('audio_url'))
+            if res.status_code is 200:
+                data['audio_file'] = ContentFile(res.content, name=f'{uuid.uuid4()}.wav')
+        return data
+
+    class Meta:
+        model = Conversation
+        fields = ('audioFileUrl', 'metadata', 'audioFile', 'sentences')
 
 class ProjectSerializer(serializers.ModelSerializer):
     current_users_role = serializers.SerializerMethodField()

@@ -123,6 +123,12 @@ STATICFILES_DIRS = [
     if path.isdir(static_path)
 ]
 
+DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+AZURE_ACCOUNT_NAME = env('AZURE_ACCOUNT_NAME', None)
+AZURE_ACCOUNT_KEY = env('AZURE_ACCOUNT_KEY', None)
+AZURE_CONTAINER = env('AZURE_CONTAINER', None)
+AZURE_URL_EXPIRATION_SECS=3600
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 WEBPACK_LOADER = {

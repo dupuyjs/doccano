@@ -13,6 +13,8 @@ services:
       ADMIN_EMAIL: "admin@example.com"
       DATABASE_URL: "postgres://doccano:doccano@postgres:5432/doccano?sslmode=disable"
       ALLOW_SIGNUP: "False" 
+    env_file:
+      - local.env
     ports:
       - 8000:8000
 
@@ -31,6 +33,8 @@ services:
 
   postgres:
     image: postgres:9.6
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
     environment:
       POSTGRES_USER: "doccano"
       POSTGRES_PASSWORD: "doccano"
@@ -41,3 +45,4 @@ services:
 volumes:
   node_modules:
   venv:
+  postgres_data:

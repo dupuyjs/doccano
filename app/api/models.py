@@ -1,6 +1,7 @@
 import string
 
 from django.db import models
+from django.contrib.postgres.fields import JSONField
 from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_delete
 from django.urls import reverse
@@ -168,9 +169,8 @@ class ConversationsProject(Project):
         # return Seq2seqAnnotation
 
     def get_storage(self, data):
-        raise NotImplementedError()
-        #from .utils import Seq2seqStorage
-        #return Seq2seqStorage(data, self)
+        from .utils import ConversationStorage
+        return ConversationStorage(data, self)
 
 class Label(models.Model):
     PREFIX_KEYS = (
@@ -226,14 +226,15 @@ class Document(models.Model):
 
 class Conversation(models.Model):
     project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
-    meta = models.TextField(default='{}')
+    meta = JSONField(null=False, blank=True)
     audio_url = models.TextField(default='', null=False)
-    audio_file = models.FileField(null=False)
+    audio_file = models.FileField(upload_to='audio', null=False, blank=False)
 
 class ConversationItem(Document):
-    conversation = models.ForeignKey(Conversation, related_name='conversation_item', on_delete=models.CASCADE)
-    start_timestamp = models.TimeField()
-    end_timestamp = models.TimeField()
+    conversation = models.ForeignKey(Conversation, related_name='conversation_items', on_delete=models.CASCADE)
+    start_time = models.FloatField()
+    end_time = models.FloatField()
+    machine_text = models.TextField()
 
 class Annotation(models.Model):
     objects = AnnotationManager()
