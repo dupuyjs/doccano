@@ -93,12 +93,26 @@ export default {
       if (c.service !== undefined)
         return c.service;
       else return `Conversation ${c.id}`;
+    },
+
+    displayText(doc) {
+      
     }
   },
 
   watch: {
     selectedConversationId: async function () {
       await this.submit()
+    },
+
+    docs: function() {
+      let keys = Object.keys(this.docs);
+      keys.forEach(k => {
+        // If doc is validated, display humanTranscription, else humanTranscription
+        // TODO: field "validated" does not exist yet
+        let doc = this.docs[k];
+        doc.text = doc.machineTranscription;
+      });      
     }
   },
 
