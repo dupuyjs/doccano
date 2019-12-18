@@ -158,15 +158,13 @@ class ConversationsProject(Project):
  
     def get_bundle_name_download(self):
         return 'download_conversations'
-
+   
     def get_annotation_serializer(self):
-        raise NotImplementedError()
-        #from .serializers import Seq2seqAnnotationSerializer
-        #return Seq2seqAnnotationSerializer
+        from .serializers import ConversationItemAnnotationSerializer
+        return ConversationItemAnnotationSerializer
 
     def get_annotation_class(self):
-        raise NotImplementedError()
-        # return Seq2seqAnnotation
+        return ConversationItemAnnotation
 
     def get_storage(self, data):
         from .utils import ConversationStorage
@@ -213,7 +211,7 @@ class Label(models.Model):
         )
 
 
-class Document(models.Model):
+class Document(PolymorphicModel):
     text = models.TextField()
     project = models.ForeignKey(Project, related_name='documents', on_delete=models.CASCADE)
     meta = models.TextField(default='{}')
@@ -282,14 +280,14 @@ class Seq2seqAnnotation(Annotation):
         unique_together = ('document', 'user', 'text')
 
 class ConversationItemAnnotation(Annotation):
-    conversation = models.ForeignKey(ConversationItem, related_name='conversation_annotation',on_delete=models.CASCADE)
+    document = models.ForeignKey(Document, related_name='conversation_annotations',on_delete=models.CASCADE)
+    label = models.ForeignKey(Label, on_delete=models.CASCADE) 
     text = models.TextField()
     start_offset = models.IntegerField()
     end_offset = models.IntegerField()   
-    label = models.ForeignKey(Label, on_delete=models.CASCADE) 
 
     class Meta:
-        unique_together = ('start_offset', 'end_offset', 'label', 'conversation')
+        unique_together = ('start_offset', 'end_offset', 'label', 'document')
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)

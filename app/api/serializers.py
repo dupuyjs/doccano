@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from .models import Label, Project, Document, RoleMapping, Role, ConversationItem, Conversation
 from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject, ConversationsProject
-from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation
+from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation, ConversationItemAnnotation
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -97,6 +97,12 @@ class ConversationItemSerializer(DocumentSerializer):
         model = ConversationItem
         fields = ('startTimeInSeconds', 'endTimeInSeconds', 'machineTranscription', 'humanTranscription')
 
+
+class DocumentPolymorphicSerializer(PolymorphicSerializer):
+    model_serializer_mapping = {
+        Document: DocumentSerializer,
+        ConversationItem: ConversationItemSerializer,
+    }
 
 class ConversationSerializer(serializers.ModelSerializer):
     audioFileUrl = serializers.URLField(source='audio_url')
@@ -250,6 +256,12 @@ class Seq2seqAnnotationSerializer(serializers.ModelSerializer):
         model = Seq2seqAnnotation
         fields = ('id', 'text', 'user', 'document', 'prob')
         read_only_fields = ('user',)
+
+class ConversationItemAnnotationSerializer(DocumentAnnotationSerializer):
+    class Meta:
+        model = ConversationItemAnnotation
+        fields = ('id', 'prob', 'label', 'start_offset', 'end_offset', 'user', 'document')
+        read_only_fields = ('user', )
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
