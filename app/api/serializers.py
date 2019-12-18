@@ -6,7 +6,7 @@ from rest_polymorphic.serializers import PolymorphicSerializer
 from rest_framework.exceptions import ValidationError
 
 
-from .models import Label, Project, Document, RoleMapping, Role
+from .models import Label, Project, Document, RoleMapping, Role, Conversation, ConversationItem
 from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject, ConversationsProject
 from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation
 
@@ -144,6 +144,20 @@ class ConversationsProjectSerializer(ProjectSerializer):
         fields = ('id', 'name', 'description', 'guideline', 'users', 'current_users_role', 'project_type', 'image',
                   'updated_at', 'randomize_document_order')
         read_only_fields = ('image', 'updated_at', 'users', 'current_users_role')
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Conversation
+        fields = ('id', 'meta', 'created_at', 'updated_at', 'audio_url', 'audio_file', 'project')
+
+
+class ConversationItemSerializer(DocumentSerializer):
+
+    class Meta:
+        model = ConversationItem
+        fields = ('id', 'text', 'annotations', 'meta', 'annotation_approver', 'start_timestamp', 'end_timestamp')
 
 
 class ProjectPolymorphicSerializer(PolymorphicSerializer):

@@ -230,12 +230,17 @@ class Document(models.Model):
 
 class Conversation(models.Model):
     project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
-    documents = models.ForeignKey(Document, related_name = 'conversation', on_delete = models.CASCADE)
     meta = models.TextField(default='{}')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     audio_url = models.TextField(default='', null=False)
     audio_file = models.FileField(null=False)
+
+
+class ConversationItem(Document):
+    conversation = models.ForeignKey(Conversation, related_name='conversation_item', on_delete=models.CASCADE)
+    start_timestamp = models.TimeField()
+    end_timestamp = models.TimeField()
 
 
 class Annotation(models.Model):

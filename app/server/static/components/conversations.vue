@@ -1,8 +1,14 @@
 <template lang="pug">
-extends ./annotation.pug
+extends ./conversations.pug
+
+block conversations-selection
+  div
+    | Please select a conversation:
+    div.control
+      select(v-model="selectedConversationId", name="selectedConversationId", required)
+        option(v-for="c in conversations", v-bind:value="c.id") {{ parseTitle(c) }}
 
 block annotation-area
-  | Hello world
   div.card
     header.card-header
       div.card-header-title.has-background-royalblue
@@ -47,6 +53,14 @@ import HTTP from './http';
 import { simpleShortcut } from './filter';
 
 export default {
+
+  data() {
+    return {
+      conversations: [],
+      selectedConversationId: 0
+    };
+  },
+
   filters: { simpleShortcut },
 
   components: { Annotator },
@@ -71,6 +85,26 @@ export default {
       await this.search();
       this.pageNumber = 0;
     },
+
+    parseTitle(conversation) {
+      var c = JSON.parse(conversation.meta);
+      if (c.service !== undefined)
+        return c.service;
+      else return "Conversation X";
+    }
   },
+
+  watch: {
+    selectedConversationId: function () {
+      console.log(this.selectedConversationId);
+    }
+  },
+
+  created() {
+    // Load conversations into drop down
+    HTTP.get('conversations').then((response) => {
+      this.conversations = response.data;
+    });
+  }
 };
 </script>

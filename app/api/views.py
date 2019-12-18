@@ -14,9 +14,9 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework_csv.renderers import CSVRenderer
 
 from .filters import DocumentFilter
-from .models import Project, Label, Document, RoleMapping, Role
+from .models import Project, Label, Document, RoleMapping, Role, Conversation
 from .permissions import IsProjectAdmin, IsAnnotatorAndReadOnly, IsAnnotator, IsAnnotationApproverAndReadOnly, IsOwnAnnotation, IsAnnotationApprover
-from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer
+from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer, ConversationSerializer
 from .serializers import ProjectPolymorphicSerializer, RoleMappingSerializer, RoleSerializer
 from .utils import CSVParser, ExcelParser, JSONParser, PlainTextParser, CoNLLParser, iterable_to_io
 from .utils import JSONLRenderer
@@ -124,6 +124,15 @@ class LabelList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         project = get_object_or_404(Project, pk=self.kwargs['project_id'])
         serializer.save(project=project)
+
+class ConversationList(generics.ListCreateAPIView):
+    serializer_class = ConversationSerializer
+    pagination_class = None
+    permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
+
+    def get_queryset(self):
+        project = get_object_or_404(Project, pk=self.kwargs['project_id'])
+        return project.conversations
 
 
 class LabelDetail(generics.RetrieveUpdateDestroyAPIView):
