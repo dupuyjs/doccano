@@ -9,35 +9,45 @@ block conversations-selection
         option(v-for="c in conversations", v-bind:value="c.id") {{ parseTitle(c) }}
 
 block annotation-area
-  div.card
-    header.card-header
-      div.card-header-title.has-background-royalblue
-        div.field.is-grouped.is-grouped-multiline
-          div.control(v-for="label in labels")
-            div.tags.has-addons
-              a.tag.is-medium(
-                v-shortkey.once="replaceNull(shortcutKey(label))"
-                v-bind:style="{ \
-                  color: label.text_color, \
-                  backgroundColor: label.background_color \
-                }"
-                v-on:click="annotate(label.id)"
-                v-on:shortkey="annotate(label.id)"
-              ) {{ label.text }}
-              span.tag.is-medium
-                kbd {{ shortcutKey(label) | simpleShortcut }}
+  div.card(
+      v-if="docs[pageNumber] && annotations[pageNumber] && docs[pageNumber].textValidated"
+    )
+      header.card-header
+        div.card-header-title.has-background-royalblue
+          div.field.is-grouped.is-grouped-multiline
+            div.control(v-for="label in labels")
+              div.tags.has-addons
+                a.tag.is-medium(
+                  v-shortkey.once="replaceNull(shortcutKey(label))"
+                  v-bind:style="{ \
+                    color: label.text_color, \
+                    backgroundColor: label.background_color \
+                  }"
+                  v-on:click="annotate(label.id)"
+                  v-on:shortkey="annotate(label.id)"
+                ) {{ label.text }}
+                span.tag.is-medium
+                  kbd {{ shortcutKey(label) | simpleShortcut }}
 
-    div.card-content
-      div.content.scrollable(v-if="docs[pageNumber] && annotations[pageNumber]", ref="textbox")
-        annotator(
-          v-bind:labels="labels"
-          v-bind:entity-positions="annotations[pageNumber]"
-          v-bind:search-query="searchQuery"
-          v-bind:text="docs[pageNumber].text"
-          v-on:remove-label="removeLabel"
-          v-on:add-label="addLabel"
-          ref="annotator"
-        )
+      div.card-content
+        div.content.scrollable(ref="textbox")
+          annotator(
+            v-bind:labels="labels"
+            v-bind:entity-positions="annotations[pageNumber]"
+            v-bind:search-query="searchQuery"
+            v-bind:text="docs[pageNumber].text"
+            v-on:remove-label="removeLabel"
+            v-on:add-label="addLabel"
+            ref="annotator"
+          )
+  
+  corrector(
+    v-if="docs[pageNumber] && !docs[pageNumber].textValidated"
+    v-bind:text="docs[pageNumber].text"
+    v-bind:audioFile="sampleAudio"
+    ref="corrector"
+  )
+
 </template>
 
 <style scoped>
@@ -49,6 +59,8 @@ block annotation-area
 <script>
 import annotationMixin from './annotationMixin';
 import Annotator from './annotator.vue';
+import Corrector from './corrector.vue';
+
 import HTTP from './http';
 import { simpleShortcut } from './filter';
 
@@ -57,13 +69,15 @@ export default {
   data() {
     return {
       conversations: [],
-      selectedConversationId: 0
+      selectedConversationId: 0,
+      sampleAudio: "/static/assets/chanel.wav",
+      correctedTranscript: ""
     };
   },
 
   filters: { simpleShortcut },
 
-  components: { Annotator },
+  components: { Annotator, Corrector },
 
   mixins: [annotationMixin],
 
@@ -95,9 +109,6 @@ export default {
       else return `Conversation ${c.id}`;
     },
 
-    displayText(doc) {
-      
-    }
   },
 
   watch: {
@@ -106,12 +117,10 @@ export default {
     },
 
     docs: function() {
-      let keys = Object.keys(this.docs);
-      keys.forEach(k => {
+      Object.keys(this.docs).forEach(k => {
         // If doc is validated, display humanTranscription, else humanTranscription
-        // TODO: field "validated" does not exist yet
         let doc = this.docs[k];
-        doc.text = doc.machineTranscription;
+        doc.text = (doc.textValidated ? doc.humainTranscription : doc.machineTranscription);
       });      
     }
   },
