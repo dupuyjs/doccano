@@ -197,6 +197,8 @@ class ConversationSerializer(serializers.ModelSerializer):
                         field = getattr(instance, field_name)
                         field.create(**related)
 
+        return instance
+
     def validate(self, data):
         if data.get('audio_url'):
             # @FIXME(Jeremie): This will probably not scale as this is sync and blocking call

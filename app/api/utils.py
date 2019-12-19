@@ -226,8 +226,18 @@ class ConversationStorage(BaseStorage):
     """
     @transaction.atomic
     def save(self, user):
+        saved_labels = {label.text: label for label in self.project.labels.all()}
         for data in self.data:
             conversations = self.save_conversations(data)
+            labels = self.extract_label(data)
+            unique_labels = self.extract_unique_labels(labels)
+            unique_labels = self.exclude_created_labels(unique_labels, saved_labels)
+            unique_labels = self.to_serializer_format(unique_labels, saved_labels)
+            new_labels = self.save_label(unique_labels)
+            saved_labels = self.update_saved_labels(saved_labels, new_labels)
+            annotations = self.make_annotations(conversations, labels, saved_labels)
+            self.save_annotation(annotations, user)
+
 
     def save_conversations(self, data):
         serializer = ConversationSerializer(data=data, many=True)
@@ -236,13 +246,25 @@ class ConversationStorage(BaseStorage):
         return conversation
 
     @classmethod
-    def make_annotations(cls, docs, data):
+    def extract_unique_labels(cls, labels):
+        return set([label for _, _, label in itertools.chain(*labels)])
+
+    @classmethod
+    def extract_label(cls, data):
+        return [sentence.get('labels', []) for conversation in data for sentence in conversation.get('sentences', [])]
+
+    @classmethod
+    def make_annotations(cls, conversations, labels, saved_labels):
+        sentences = [sentence for conversation in conversations for sentence in conversation.conversation_items.all()]
         annotations = []
-        for doc, datum in zip(docs, data):
-            try:
-                annotations.append({'document': doc.id, 'text': datum['transcription']})
-            except KeyError:
-                continue
+        for sentence, spans in zip(sentences, labels):
+            for span in spans:
+                start_offset, end_offset, name = span
+                label = saved_labels[name]
+                annotations.append({'document': sentence.id,
+                                    'label': label.id,
+                                    'start_offset': start_offset,
+                                    'end_offset': end_offset})
         return annotations
         
 
