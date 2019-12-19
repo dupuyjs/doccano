@@ -115,6 +115,20 @@ class ApproveLabelsAPI(APIView):
         document.save()
         return Response(DocumentSerializer(document).data)
 
+class ApproveCorrectionsAPI(APIView):
+    permission_classes = [IsAuthenticated & (IsAnnotationApprover | IsProjectAdmin)]
+
+    def post(self, request, *args, **kwargs):
+        corrected = self.request.data.get('corrected')
+        document = get_object_or_404(Document, pk=self.kwargs['doc_id'])
+        document.text_validated = corrected
+        if (corrected):
+            # We don't want to change the text if someones clicks "correct again"
+            humanText = self.request.data.get('correctedText')
+            document.text = humanText
+        document.save()
+        return Response(DocumentSerializer(document).data)
+
 
 class LabelList(generics.ListCreateAPIView):
     serializer_class = LabelSerializer

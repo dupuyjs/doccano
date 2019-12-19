@@ -14,7 +14,7 @@
             header.header
                 textarea.textarea(
                     type="text"
-                    v-model="text"
+                    v-model="correctedText"
                     placeholder="Correct audio transcript here ..."
                     autofocus
                 )
@@ -44,16 +44,8 @@ export default {
   },
 
   data: () => ({
-
+      correctedText: ''
   }),
-
-  computed: {
-    
-  },
-
-  watch: {
-
-  },
 
   methods: {
     async playOrPauseAudio() {
@@ -67,6 +59,14 @@ export default {
       }
     },
 
+    getText() {
+        return this.correctedText;
+    }
+
   },
+
+  async created() {
+      this.correctedText = this.text;
+  }
 };
 </script>

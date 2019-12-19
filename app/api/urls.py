@@ -4,7 +4,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 from .views import Me, Features, Users
 from .views import ProjectList, ProjectDetail
-from .views import LabelList, LabelDetail, ApproveLabelsAPI
+from .views import LabelList, LabelDetail, ApproveLabelsAPI, ApproveCorrectionsAPI
 from .views import ConversationList
 from .views import DocumentList, DocumentDetail
 from .views import AnnotationList, AnnotationDetail
@@ -28,6 +28,9 @@ urlpatterns = [
 
      path('projects/<int:project_id>/conversations',
          ConversationList.as_view(), name='conversation_list'),
+     
+     path('projects/<int:project_id>/docs/<int:doc_id>/approve-correction',
+         ApproveCorrectionsAPI.as_view(), name='approve_correction'),
 
     path('projects/<int:project_id>/labels/<int:label_id>',
          LabelDetail.as_view(), name='label_detail'),

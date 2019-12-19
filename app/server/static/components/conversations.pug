@@ -3,6 +3,9 @@ div.columns(v-cloak="")
     div
 
       div.main.pr20.pl20
+        
+        block conversations-selection
+        
         div.field.has-addons
           div.control.is-expanded
             input.input(
@@ -77,7 +80,6 @@ div.columns(v-cloak="")
           span.name {{ doc.text.slice(0, 60) }}...
 
   div.column.is-7.is-offset-1.message.hero.is-fullheight#message-pane
-    block conversations-selection
     div.modal(v-bind:class="{ 'is-active': isAnnotationGuidelineActive }")
       div.modal-background
       div.modal-card
@@ -115,12 +117,20 @@ div.columns(v-cloak="")
           v-bind:value="achievement"
           max="100"
         ) 30%
-      div.column.is-6
+      div.column.is-5
         span.ml10
           strong {{ total - remaining }}
         | /
         span {{ total }}
 
+      div.column.is-1.has-text-right
+        a.button.tooltip.is-tooltip-bottom(
+          v-if="isAnnotationApprover"
+          v-on:click="approveDocumentCorrection"
+          v-bind:data-tooltip="approveDocumentCorrectionTooltip"
+        )
+          span.icon
+            i.far(v-bind:class="[documentIsCorrected ? 'fa-check-square' : 'fa-square']")
       div.column.is-1.has-text-right
         a.button.tooltip.is-tooltip-bottom(
           v-if="isAnnotationApprover"
