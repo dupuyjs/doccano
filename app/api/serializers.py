@@ -153,7 +153,7 @@ class ConversationItemSerializer(DocumentSerializer):
     endTimeInSeconds = serializers.FloatField(source='end_time')
     machineTranscription = serializers.CharField(source='machine_text')
     humanTranscription = serializers.CharField(source='text')
-    textValidated = serializers.BooleanField(source='text_validated')
+    textValidated = serializers.BooleanField(source='text_validated', default=False)
     conversation = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
