@@ -44,7 +44,7 @@ block annotation-area
   corrector(
     v-if="docs[pageNumber] && !docs[pageNumber].textValidated"
     v-bind:text="docs[pageNumber].text"
-    v-bind:audioFile="sampleAudio"
+    v-bind:audioFile="this.conversations.find(c => c.id === this.selectedConversationId).audioFile"
     ref="corrector"
   )
 
@@ -70,7 +70,6 @@ export default {
     return {
       conversations: [],
       selectedConversationId: 0,
-      sampleAudio: "/static/assets/chanel.wav",
       correctedTranscript: ""
     };
   },
@@ -113,7 +112,7 @@ export default {
 
   watch: {
     selectedConversationId: async function () {
-      await this.submit()
+      await this.submit();
     },
 
     docs: function() {
