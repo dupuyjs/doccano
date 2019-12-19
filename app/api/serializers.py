@@ -170,7 +170,7 @@ class DocumentPolymorphicSerializer(PolymorphicSerializer):
 class ConversationSerializer(serializers.ModelSerializer):
     audioFileUrl = serializers.URLField(source='audio_url')
     metadata = serializers.JSONField(source='meta', required=False)
-    sentences = ConversationItemSerializer(source='conversation_items', many=True)
+    sentences = ConversationItemSerializer(source='conversation_items', many=True, write_only=True)
     # @FIXME(Jeremie): Hack to be able to save file from audioUrl, a new field shoud be created
     # following this example : https://github.com/Hipo/drf-extra-fields#base64filefield
     audioFile = serializers.FileField(source='audio_file', required=False)
