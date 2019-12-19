@@ -1,6 +1,8 @@
+import requests, uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.core.files.base import ContentFile
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 from rest_framework.exceptions import ValidationError
@@ -151,6 +153,7 @@ class ConversationItemSerializer(DocumentSerializer):
     endTimeInSeconds = serializers.FloatField(source='end_time')
     machineTranscription = serializers.CharField(source='machine_text')
     humanTranscription = serializers.CharField(source='text')
+    conversation = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = ConversationItem
