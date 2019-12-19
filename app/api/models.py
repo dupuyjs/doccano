@@ -240,6 +240,7 @@ class ConversationItem(Document):
     start_time = models.FloatField()
     end_time = models.FloatField()
     machine_text = models.TextField()
+    text_validated = models.BooleanField(default=False)
 
 
 class Annotation(models.Model):
