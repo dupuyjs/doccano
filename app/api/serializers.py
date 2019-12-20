@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 from rest_framework.exceptions import ValidationError
+import json
 
 
 from .models import Label, Project, Document, RoleMapping, Role, Conversation, ConversationItem
@@ -181,6 +182,11 @@ class ConversationSerializer(serializers.ModelSerializer):
         if 'conversation_items' in validated_data.keys():
             validated_data.update({'conversation_items': [
                 {'project': validated_data.get('project'), **item } for item in validated_data.get('conversation_items') ]})
+
+        if 'meta' in validated_data.keys():
+            validated_data.update({
+                'meta': json.dumps(validated_data.get('meta'))
+            })
 
         many_to_many = {}
         for field_name in ['conversation_items']:
