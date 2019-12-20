@@ -228,7 +228,7 @@ class Document(PolymorphicModel):
 
 class Conversation(models.Model):
     project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
-    meta = JSONField(null=False, blank=True)
+    meta = models.TextField(default='{}', null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     audio_url = models.TextField(default='', null=False)

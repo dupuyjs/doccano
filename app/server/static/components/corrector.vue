@@ -5,6 +5,7 @@
                 audio.audio(
                     ref="player"
                     controls
+                    type="audio/x-wav"
                     v-bind:src="audioFile"
                     v-shortkey="{ playOrPauseAudio: ['alt', 'p'] }"
                     v-on:shortkey="playOrPauseAudio"
