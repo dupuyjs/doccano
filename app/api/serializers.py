@@ -169,7 +169,7 @@ class DocumentPolymorphicSerializer(PolymorphicSerializer):
 
 
 class ConversationSerializer(serializers.ModelSerializer):
-    audioFileUrl = serializers.URLField(source='audio_url')
+    audioFileUrl = serializers.URLField(source='audio_url', write_only=True)
     metadata = serializers.JSONField(source='meta', required=False)
     sentences = ConversationItemSerializer(source='conversation_items', many=True, write_only=True)
     # @FIXME(Jeremie): Hack to be able to save file from audioUrl, a new field shoud be created
@@ -196,6 +196,8 @@ class ConversationSerializer(serializers.ModelSerializer):
                     for related in value:
                         field = getattr(instance, field_name)
                         field.create(**related)
+
+        return instance
 
     def validate(self, data):
         if data.get('audio_url'):
