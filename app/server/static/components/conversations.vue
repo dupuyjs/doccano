@@ -166,12 +166,20 @@ export default {
 
     annotations() {
       // fetch progress info.
+<<<<<<< HEAD
       HTTP.get(`statistics?include=total&include=remaining&conversation=${this.selectedConversationId}`).then((response) => {
+=======
+      HTTP.get('statistics?include=total&include=remaining').then((response) => {
+>>>>>>> 984c3c588bacfa924438a04bea5e022c72a0bc8c
         this.total = response.data.total;
         this.remaining = response.data.remaining;
       });
     },
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 984c3c588bacfa924438a04bea5e022c72a0bc8c
   },
 
   async created() {
