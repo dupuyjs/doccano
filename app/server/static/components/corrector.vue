@@ -5,8 +5,6 @@
                 audio.audio(
                     ref="player"
                     controls
-                    type="audio/x-wav"
-                    v-bind:src="audioFile"
                     v-shortkey="{ playOrPauseAudio: ['alt', 'p'] }"
                     v-on:shortkey="playOrPauseAudio"
                 )                    
@@ -48,9 +46,18 @@ export default {
       correctedText: ''
   }),
 
+  mounted() {
+    this.$nextTick(() => {
+        const player = this.$refs.player;
+        player.src = this.audioFile;
+        player.type = "audio/wav";
+    })
+  },
+
   methods: {
     async playOrPauseAudio() {
       const player = this.$refs.player;
+      console.log(player);
       if (this.isAudioPlaying) {
         player.pause();
         this.isAudioPlaying = false;
@@ -66,8 +73,8 @@ export default {
 
   },
 
-  async created() {
-      this.correctedText = this.text;
+  created() {
+      this.correctedText = this.text;      
   }
 };
 </script>

@@ -162,7 +162,16 @@ export default {
         doc.text = (this.documentIsCorrected || (!this.documentIsCorrected && doc.humanTranscription != "") ? 
           doc.humanTranscription : doc.machineTranscription);
       });      
-    }
+    },
+
+    annotations() {
+      // fetch progress info.
+      HTTP.get('statistics?include=total&include=remaining').then((response) => {
+        this.total = response.data.total;
+        this.remaining = response.data.remaining;
+      });
+    },
+    
   },
 
   async created() {
