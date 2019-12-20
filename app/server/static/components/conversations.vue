@@ -42,7 +42,7 @@ block annotation-area
           )
   
   corrector(
-    v-if="docs[pageNumber] && !documentIsCorrected"
+    v-if="docs[pageNumber] && annotations[pageNumber] && !documentIsCorrected"
     v-bind:text="docs[pageNumber].text"
     v-bind:audioFile="this.conversations.find(c => c.id === this.selectedConversationId).audioFile"
     v-on:dataChanged="getCorrectedText"
@@ -166,12 +166,12 @@ export default {
 
     annotations() {
       // fetch progress info.
-      HTTP.get('statistics?include=total&include=remaining').then((response) => {
+      HTTP.get(`statistics?include=total&include=remaining&conversation=${this.selectedConversationId}`).then((response) => {
         this.total = response.data.total;
         this.remaining = response.data.remaining;
       });
     },
-    
+
   },
 
   async created() {

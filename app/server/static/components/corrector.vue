@@ -73,8 +73,15 @@ export default {
 
   },
 
+  watch: {
+    text() {
+      this.correctedText = this.text;
+    }
+  },
+
   created() {
-      this.correctedText = this.text;      
+    this.correctedText = this.text;
   }
+
 };
 </script>
