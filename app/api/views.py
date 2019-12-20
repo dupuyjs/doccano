@@ -70,15 +70,16 @@ class StatisticsAPI(APIView):
         p = get_object_or_404(Project, pk=self.kwargs['project_id'])
 
         include = set(request.GET.getlist('include'))
+        conversation = request.GET.get('conversation')
         response = {}
-
+        
         if not include or 'label' in include or 'user' in include:
             label_count, user_count = self.label_per_data(p)
             response['label'] = label_count
             response['user'] = user_count
 
         if not include or 'total' in include or 'remaining' in include:
-            progress = self.progress(project=p)
+            progress = self.progress(project=p, conversation=conversation)
             response.update(progress)
 
         if include:
@@ -86,8 +87,11 @@ class StatisticsAPI(APIView):
 
         return Response(response)
 
-    def progress(self, project):
-        docs = project.documents
+    def progress(self, project, conversation=None):
+        if conversation:
+            docs = project.conversations.get(pk=conversation).conversation_items
+        else:
+            docs = project.documents
         annotation_class = project.get_annotation_class()
         total = docs.count()
         done = annotation_class.objects.filter(document_id__in=docs.all(),
