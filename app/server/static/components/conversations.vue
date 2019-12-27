@@ -40,10 +40,11 @@ block annotation-area
             v-on:add-label="addLabel"
             ref="annotator"
           )
-  
   corrector(
     v-if="docs[pageNumber] && annotations[pageNumber] && !documentIsCorrected"
     v-bind:text="docs[pageNumber].text"
+    v-bind:start="docs[pageNumber].startTimeInSeconds"
+    v-bind:end="docs[pageNumber].endTimeInSeconds"
     v-bind:audioFile="this.conversations.find(c => c.id === this.selectedConversationId).audioFile"
     v-on:dataChanged="getCorrectedText"
     ref="corrector"
@@ -71,44 +72,34 @@ export default {
     return {
       conversations: [],
       selectedConversationId: 0,
-      correctedText: ""
+      correctedText: '',
+      ordering: 'created_at',
     };
   },
-
   filters: { simpleShortcut },
-
   components: { Annotator, Corrector },
-
   mixins: [annotationMixin],
-
   computed: {
-    
     documentIsCorrected() {
       const document = this.docs[this.pageNumber];
       return document != null && document.textValidated;
     },
-
     approveDocumentCorrectionTooltip() {
       return this.documentIsCorrected
-        ? `Correction done, click to correct transcript`
+        ? 'Correction done, click to correct transcript'
         : 'Click to correct transcript';
     },
-
   },
-
   methods: {
-    
     annotate(labelId) {
       this.$refs.annotator.addLabel(labelId);
     },
-
     addLabel(annotation) {
       const docId = this.docs[this.pageNumber].id;
       HTTP.post(`docs/${docId}/annotations`, annotation).then((response) => {
         this.annotations[this.pageNumber].push(response.data);
       });
     },
-
     async submit() {
       if (this.selectedConversationId > 0) {
         const state = this.getState();
@@ -117,53 +108,43 @@ export default {
         this.pageNumber = 0;
       }
     },
-
     parseConversationsTitle(conversation) {
-      var c = JSON.parse(conversation.metadata);
-      if (c.service !== undefined)
+      const c = JSON.parse(conversation.metadata);
+      if (c.service !== undefined) {
         return c.service;
-      else return `Conversation ${c.id}`;
+      }
+      return `Conversation ${c.id}`;
     },
-
     getCorrectedText(text) {
       this.correctedText = text;
     },
-
     async approveDocumentCorrection() {
       const document = this.docs[this.pageNumber];
-      if (!this.documentIsCorrected)
-      {
+      if (!this.documentIsCorrected) {
         // Edit mode
         const correctedText = this.$refs.corrector.getText();
-        const corrected = true;
-        var response = await HTTP.post(`docs/${document.id}/approve-correction`, { corrected, correctedText });
+        await HTTP.post(`docs/${document.id}/approve-correction`, { corrected: true, correctedText });
         document.text = correctedText;
-      }
-      else {
+      } else {
         // Not-edit mode
-        const corrected = false;
-        var response = await HTTP.post(`docs/${document.id}/approve-correction`, { corrected });
+        await HTTP.post(`docs/${document.id}/approve-correction`, { corrected: false });
       }
-      this.docs[this.pageNumber].textValidated = !this.docs[this.pageNumber].textValidated
+      this.docs[this.pageNumber].textValidated = !this.docs[this.pageNumber].textValidated;
     },
-
   },
-
   watch: {
-    selectedConversationId: async function () {
+    async selectedConversationId() {
       await this.submit();
     },
-
-    docs: function() {
-      Object.keys(this.docs).forEach(k => {
+    docs() {
+      Object.keys(this.docs).forEach((k) => {
         // If doc is validated, display humanTranscription, else humanTranscription
         // However, if doc is not validated, but humanTranscription exists, take that one
-        let doc = this.docs[k];
-        doc.text = (this.documentIsCorrected || (!this.documentIsCorrected && doc.humanTranscription != "") ? 
-          doc.humanTranscription : doc.machineTranscription);
-      });      
+        const doc = this.docs[k];
+        doc.text = (this.documentIsCorrected || (!this.documentIsCorrected && doc.humanTranscription !== '')
+          ? doc.humanTranscription : doc.machineTranscription);
+      });
     },
-
     annotations() {
       // fetch progress info.
       HTTP.get(`statistics?include=total&include=remaining&conversation=${this.selectedConversationId}`).then((response) => {
@@ -172,16 +153,14 @@ export default {
       });
     },
   },
-
   async created() {
     // Load conversations into drop down
-    var response = await HTTP.get('conversations')
+    const response = await HTTP.get('conversations');
     this.conversations = response.data;
     // Select first item in the list if any
     if (this.conversations.length > 0) {
       this.selectedConversationId = this.conversations[0].id;
     }
-
-  }
+  },
 };
 </script>
