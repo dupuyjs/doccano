@@ -1,0 +1,137 @@
+# Built-test-staging-prod pipeline
+
+trigger:
+  branches:
+    include:
+      - master
+      - develop
+
+variables:
+  serviceConnectionUUID: eadef5ca-d019-4959-a055-6b27852a51d7
+  dockerRepository: 'doccano-$(Build.SourceBranchName)'
+  dockerNamespaceDev: 'chadoccanodevacr.azurecr.io'
+  dockerNamespaceStg: 'chadoccanostgacr.azurecr.io'
+
+stages:
+- stage: build
+  jobs:
+  - job: build_app_dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    steps:
+
+  - job: build_app_dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    steps:
+    - task: Docker@2
+      displayName: Login to ACR
+      inputs:
+        command: login
+        containerRegistry: doccanoAcrDevSC
+    - script: docker pull $(dockerNamespaceDev)/$(dockerRepository):latest || true
+    - task: Docker@2
+      displayName: Build docker image
+      inputs:
+        command: build
+        containerRegistry: doccanoAcrDevSC
+        repository: $(dockerRepository)
+        buildContext: ./
+        tags: |
+          $(Build.BuildId)
+          latest
+        arguments: --cache-from $(dockerNamespaceDev)/$(dockerRepository):latest
+    - task: Docker@2
+      displayName: Push docker image
+      inputs:
+        command: push
+        containerRegistry: doccanoAcrDevSC
+        repository: $(dockerRepository)
+        tags: |
+          $(Build.BuildId)
+          latest  
+  - job: build_app_prod
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    steps:
+    - task: Docker@2
+      displayName: Login to ACR
+      inputs:
+        command: login
+        containerRegistry: doccanoAcrStgSC
+    - script: docker pull $(dockerNamespaceStg)/$(dockerRepository):latest || true
+    - task: Docker@2
+      displayName: Build docker image
+      inputs:
+        command: build
+        containerRegistry: doccanoAcrStgSC
+        repository: $(dockerRepository)
+        buildContext: ./
+        tags: |
+          $(Build.BuildId)
+          latest
+        arguments: --cache-from $(dockerNamespaceDev)/$(dockerRepository):latest
+    - task: Docker@2
+      displayName: Push docker image
+      inputs:
+        command: push
+        containerRegistry: doccanoAcrStgSC
+        repository: $(dockerRepository)
+        tags: |
+          $(Build.BuildId)
+          latest  
+- stage: deploy
+  dependsOn: ['build']
+  condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.SourceBranch'], 'refs/heads/master')))
+  jobs:  
+  - deployment: deploy_dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    environment: 'aiinno-api-dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - task: AzureRMWebAppDeployment@4
+              displayName: Deploy Azure App Service
+              inputs:
+                appType: webAppContainer
+                ConnectedServiceName: $(serviceConnectionUUID)
+                WebAppName: 'aiinno-api-docker-dev'
+                DockerNamespace: $(dockerNamespaceDev)
+                DockerRepository: $(dockerRepository)
+                DockerImageTag: $(Build.BuildId)
+                AppSettings: >
+                  -ADMIN_USERNAME $(adminUsernameDev)
+                  -ADMIN_EMAIL $(adminEmailDev)
+                  -ADMIN_PASSWORD $(adminPasswordDev)
+                  -SECRET_KEY $(secretKeyDev)
+                  -DATABASE_URL $(databaseUrlDev)
+  - deployment: deploy_stg
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    environment: 'aiinno-api-stg'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - task: AzureRMWebAppDeployment@4
+              displayName: Deploy Azure App Service
+              inputs:
+                appType: webAppContainer
+                ConnectedServiceName: $(serviceConnectionUUID)
+                WebAppName: 'aiinno-api-stg'
+                DockerNamespace: $(dockerNamespaceStg)
+                DockerRepository: $(dockerRepository)
+                DockerImageTag: $(Build.BuildId)
+                AppSettings: >
+                  -ADMIN_USERNAME $(adminUsernameStg)
+                  -ADMIN_EMAIL $(adminEmailStg)
+                  -ADMIN_PASSWORD $(adminPasswordStg)
+                  -SECRET_KEY $(secretKeyStg)
+                  -DATABASE_URL $(databaseUrlStg)
