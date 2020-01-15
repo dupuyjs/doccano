@@ -23,6 +23,14 @@ body {
   overflow-x: hidden;
 }
 
+.sidebar-scrollable.half-sized {
+  max-height: 45vh;
+}
+
+.hero.is-fullheight {
+  min-height: calc(100vh - 52px);
+}
+
 .messages {
   display: block;
   background-color: #fff;

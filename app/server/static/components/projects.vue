@@ -40,6 +40,7 @@
                 option(value="DocumentClassification") document classification
                 option(value="SequenceLabeling") sequence labeling
                 option(value="Seq2seq") sequence to sequence
+                option(value="Conversations") conversations validation and labelling
             p.help.is-danger {{ projectTypeError }}
 
           div.field
@@ -200,6 +201,9 @@ export default {
       if (projectType === 'Seq2seq') {
         return this.selected === 'Seq2seq';
       }
+      if (projectType === 'Conversations') {
+        return this.selected === 'Conversations';
+      }
       return false;
     },
 
@@ -242,6 +246,9 @@ export default {
       }
       if (this.projectType === 'Seq2seq') {
         return 'Seq2seqProject';
+      }
+      if (this.projectType === 'Conversations') {
+        return 'ConversationsProject';
       }
       return '';
     },

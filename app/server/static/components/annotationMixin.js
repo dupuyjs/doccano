@@ -224,7 +224,7 @@ export default {
 
       HTTP.post(`docs/${document.id}/approve-labels`, { approved }).then((response) => {
         const documents = this.docs.slice();
-        documents[this.pageNumber] = response.data;
+        documents[this.pageNumber].annotation_approver = response.data.annotation_approver;
         this.docs = documents;
       });
     },
