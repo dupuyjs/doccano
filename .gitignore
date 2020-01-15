@@ -4,6 +4,9 @@
 .DS_Store
 .AppleDouble
 .LSOverride
+env/
+*.wav
+.env
 
 # Icon must end with two \r
 Icon
@@ -200,3 +203,4 @@ bundle/
 webpack-stats.json
 
 .vscode
+local.env
