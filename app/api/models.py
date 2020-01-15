@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_delete
 from django.urls import reverse
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.contrib.auth.models import User
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.exceptions import ValidationError
@@ -15,10 +16,12 @@ from .managers import AnnotationManager, Seq2seqAnnotationManager
 DOCUMENT_CLASSIFICATION = 'DocumentClassification'
 SEQUENCE_LABELING = 'SequenceLabeling'
 SEQ2SEQ = 'Seq2seq'
+CONVERSATIONS = 'Conversations'
 PROJECT_CHOICES = (
     (DOCUMENT_CLASSIFICATION, 'document classification'),
     (SEQUENCE_LABELING, 'sequence labeling'),
     (SEQ2SEQ, 'sequence to sequence'),
+    (CONVERSATIONS, 'conversations validation and labelling'),
 )
 
 
@@ -143,6 +146,33 @@ class Seq2seqProject(Project):
         return Seq2seqStorage(data, self)
 
 
+class ConversationsProject(Project):
+
+    @property
+    def image(self):
+        return staticfiles_storage.url('assets/images/cats/seq2seq.jpg')
+
+    def get_bundle_name(self):
+        return 'conversations'
+
+    def get_bundle_name_upload(self):
+        return 'upload_conversations'
+ 
+    def get_bundle_name_download(self):
+        return 'download_conversations'
+
+    def get_annotation_serializer(self):
+        from .serializers import ConversationItemAnnotationSerializer
+        return ConversationItemAnnotationSerializer
+
+    def get_annotation_class(self):
+        return ConversationItemAnnotation
+
+    def get_storage(self, data):
+        from .utils import ConversationStorage
+        return ConversationStorage(data, self)
+
+
 class Label(models.Model):
     PREFIX_KEYS = (
         ('ctrl', 'ctrl'),
@@ -184,7 +214,7 @@ class Label(models.Model):
         )
 
 
-class Document(models.Model):
+class Document(PolymorphicModel):
     text = models.TextField()
     project = models.ForeignKey(Project, related_name='documents', on_delete=models.CASCADE)
     meta = models.TextField(default='{}')
@@ -194,6 +224,24 @@ class Document(models.Model):
 
     def __str__(self):
         return self.text[:50]
+
+
+class Conversation(models.Model):
+    project = models.ForeignKey(ConversationsProject, related_name='conversations', on_delete=models.CASCADE)
+    meta = models.TextField(default='{}', null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    audio_url = models.TextField(default='', null=False)
+    audio_file = models.FileField(upload_to='audio', null=False, blank=False)
+
+
+class ConversationItem(Document):
+    conversation = models.ForeignKey(Conversation, related_name='conversation_items', on_delete=models.CASCADE)
+    start_time = models.FloatField()
+    end_time = models.FloatField()
+    machine_text = models.TextField()
+    is_validated = models.BooleanField(default=False)
+    is_ignored = models.BooleanField(default=False)
 
 
 class Annotation(models.Model):
@@ -241,6 +289,15 @@ class Seq2seqAnnotation(Annotation):
     class Meta:
         unique_together = ('document', 'user', 'text')
 
+class ConversationItemAnnotation(Annotation):
+    document = models.ForeignKey(Document, related_name='conversation_annotations',on_delete=models.CASCADE)
+    label = models.ForeignKey(Label, on_delete=models.CASCADE) 
+    text = models.TextField()
+    start_offset = models.IntegerField()
+    end_offset = models.IntegerField()   
+
+    class Meta:
+        unique_together = ('start_offset', 'end_offset', 'label', 'document')
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
