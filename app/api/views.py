@@ -14,9 +14,9 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework_csv.renderers import CSVRenderer
 
 from .filters import DocumentFilter
-from .models import Project, Label, Document, RoleMapping, Role
+from .models import Project, Label, Document, RoleMapping, Role, Conversation
 from .permissions import IsProjectAdmin, IsAnnotatorAndReadOnly, IsAnnotator, IsAnnotationApproverAndReadOnly, IsOwnAnnotation, IsAnnotationApprover
-from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer
+from .serializers import ProjectSerializer, LabelSerializer, DocumentSerializer, UserSerializer, ConversationSerializer, DocumentPolymorphicSerializer
 from .serializers import ProjectPolymorphicSerializer, RoleMappingSerializer, RoleSerializer
 from .utils import CSVParser, ExcelParser, JSONParser, PlainTextParser, CoNLLParser, iterable_to_io
 from .utils import JSONLRenderer
@@ -70,15 +70,16 @@ class StatisticsAPI(APIView):
         p = get_object_or_404(Project, pk=self.kwargs['project_id'])
 
         include = set(request.GET.getlist('include'))
+        conversation = request.GET.get('conversation')
         response = {}
-
+        
         if not include or 'label' in include or 'user' in include:
             label_count, user_count = self.label_per_data(p)
             response['label'] = label_count
             response['user'] = user_count
 
         if not include or 'total' in include or 'remaining' in include:
-            progress = self.progress(project=p)
+            progress = self.progress(project=p, conversation=conversation)
             response.update(progress)
 
         if include:
@@ -86,8 +87,11 @@ class StatisticsAPI(APIView):
 
         return Response(response)
 
-    def progress(self, project):
-        docs = project.documents
+    def progress(self, project, conversation=None):
+        if conversation:
+            docs = project.conversations.get(pk=conversation).conversation_items
+        else:
+            docs = project.documents
         annotation_class = project.get_annotation_class()
         total = docs.count()
         done = annotation_class.objects.filter(document_id__in=docs.all(),
@@ -111,6 +115,20 @@ class ApproveLabelsAPI(APIView):
         document.save()
         return Response(DocumentSerializer(document).data)
 
+class ApproveCorrectionsAPI(APIView):
+    permission_classes = [IsAuthenticated & (IsAnnotationApprover | IsProjectAdmin)]
+
+    def post(self, request, *args, **kwargs):
+        corrected = self.request.data.get('corrected')
+        document = get_object_or_404(Document, pk=self.kwargs['doc_id'])
+        document.text_validated = corrected
+        if (corrected):
+            # We don't want to change the text if someones clicks "correct again"
+            humanText = self.request.data.get('correctedText')
+            document.text = humanText
+        document.save()
+        return Response(DocumentSerializer(document).data)
+
 
 class LabelList(generics.ListCreateAPIView):
     serializer_class = LabelSerializer
@@ -125,6 +143,15 @@ class LabelList(generics.ListCreateAPIView):
         project = get_object_or_404(Project, pk=self.kwargs['project_id'])
         serializer.save(project=project)
 
+class ConversationList(generics.ListCreateAPIView):
+    serializer_class = ConversationSerializer
+    pagination_class = None
+    permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
+
+    def get_queryset(self):
+        project = get_object_or_404(Project, pk=self.kwargs['project_id'])
+        return project.conversations
+
 
 class LabelDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Label.objects.all()
@@ -134,7 +161,7 @@ class LabelDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 class DocumentList(generics.ListCreateAPIView):
-    serializer_class = DocumentSerializer
+    serializer_class = DocumentPolymorphicSerializer
     filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
     search_fields = ('text', )
     ordering_fields = ('created_at', 'updated_at', 'doc_annotations__updated_at',
@@ -142,7 +169,7 @@ class DocumentList(generics.ListCreateAPIView):
     filter_class = DocumentFilter
     permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
 
-    def get_queryset(self):
+    def get_queryset(self):        
         project = get_object_or_404(Project, pk=self.kwargs['project_id'])
 
         queryset = project.documents
@@ -158,7 +185,7 @@ class DocumentList(generics.ListCreateAPIView):
 
 class DocumentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Document.objects.all()
-    serializer_class = DocumentSerializer
+    serializer_class = DocumentPolymorphicSerializer
     lookup_url_kwarg = 'doc_id'
     permission_classes = [IsAuthenticated & IsInProjectReadOnlyOrAdmin]
 

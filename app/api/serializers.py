@@ -1,14 +1,17 @@
+import requests, uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.core.files.base import ContentFile
 from rest_framework import serializers
 from rest_polymorphic.serializers import PolymorphicSerializer
 from rest_framework.exceptions import ValidationError
+import json
 
 
-from .models import Label, Project, Document, RoleMapping, Role
-from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject
-from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation
+from .models import Label, Project, Document, RoleMapping, Role, Conversation, ConversationItem
+from .models import TextClassificationProject, SequenceLabelingProject, Seq2seqProject, ConversationsProject
+from .models import DocumentAnnotation, SequenceAnnotation, Seq2seqAnnotation, ConversationItemAnnotation
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -137,12 +140,93 @@ class Seq2seqProjectSerializer(ProjectSerializer):
         read_only_fields = ('image', 'updated_at', 'users', 'current_users_role')
 
 
+class ConversationsProjectSerializer(ProjectSerializer):
+
+    class Meta:
+        model = ConversationsProject
+        fields = ('id', 'name', 'description', 'guideline', 'users', 'current_users_role', 'project_type', 'image',
+                  'updated_at', 'randomize_document_order')
+        read_only_fields = ('image', 'updated_at', 'users', 'current_users_role')
+
+
+class ConversationItemSerializer(DocumentSerializer):
+    startTimeInSeconds = serializers.FloatField(source='start_time')
+    endTimeInSeconds = serializers.FloatField(source='end_time')
+    machineTranscription = serializers.CharField(source='machine_text', allow_blank=True)
+    humanTranscription = serializers.CharField(source='text', allow_blank=True)
+    isValidated = serializers.BooleanField(source='is_validated', default=False)
+    isIgnored = serializers.BooleanField(source='is_ignored', default=False)
+    conversation = serializers.PrimaryKeyRelatedField(read_only=True)
+    metadata = serializers.JSONField(source='meta', required=False)
+
+    class Meta:
+        model = ConversationItem
+        fields = ('id', 'startTimeInSeconds', 'endTimeInSeconds', 'machineTranscription', 'humanTranscription', 'metadata', 'isValidated', 'isIgnored', 'conversation', 'annotations', 'annotation_approver')
+
+
+class DocumentPolymorphicSerializer(PolymorphicSerializer):
+    model_serializer_mapping = {
+        Document: DocumentSerializer,
+        ConversationItem: ConversationItemSerializer,
+    }
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    audioFileUrl = serializers.URLField(source='audio_url', write_only=True)
+    metadata = serializers.JSONField(source='meta', required=False)
+    sentences = ConversationItemSerializer(source='conversation_items', many=True, write_only=True)
+    # @FIXME(Jeremie): Hack to be able to save file from audioUrl, a new field shoud be created
+    # following this example : https://github.com/Hipo/drf-extra-fields#base64filefield
+    audioFile = serializers.FileField(source='audio_file', required=False)
+
+    def create(self, validated_data):
+        # As conversation item inherit from documents we need to set the project id
+        if 'conversation_items' in validated_data.keys():
+            validated_data.update({'conversation_items': [
+                {'project': validated_data.get('project'), **item } for item in validated_data.get('conversation_items') ]})
+
+        if 'meta' in validated_data.keys():
+            validated_data.update({
+                'meta': json.dumps(validated_data.get('meta'))
+            })
+
+        many_to_many = {}
+        for field_name in ['conversation_items']:
+            if field_name in validated_data:
+                many_to_many[field_name] = validated_data.pop(field_name)
+
+        instance = self.Meta.model.objects.create(**validated_data)
+
+        # Save many-to-many relationships after the instance is created.
+        if many_to_many:
+            for field_name, value in many_to_many.items():
+                if type(value) is list:
+                    for related in value:
+                        field = getattr(instance, field_name)
+                        field.create(**related)
+
+        return instance
+
+    def validate(self, data):
+        if data.get('audio_url'):
+            # @FIXME(Jeremie): This will probably not scale as this is sync and blocking call
+            res = requests.get(data.get('audio_url'))
+            if res.status_code is 200:
+                data['audio_file'] = ContentFile(res.content, name=f'{uuid.uuid4()}.wav')
+        return data
+
+    class Meta:
+        model = Conversation
+        fields = ('id', 'audioFileUrl', 'metadata', 'audioFile', 'sentences')
+
+
 class ProjectPolymorphicSerializer(PolymorphicSerializer):
     model_serializer_mapping = {
         Project: ProjectSerializer,
         TextClassificationProject: TextClassificationProjectSerializer,
         SequenceLabelingProject: SequenceLabelingProjectSerializer,
-        Seq2seqProject: Seq2seqProjectSerializer
+        Seq2seqProject: Seq2seqProjectSerializer,
+        ConversationsProject: ConversationsProjectSerializer,
     }
 
 
@@ -186,6 +270,14 @@ class Seq2seqAnnotationSerializer(serializers.ModelSerializer):
         model = Seq2seqAnnotation
         fields = ('id', 'text', 'user', 'document', 'prob')
         read_only_fields = ('user',)
+
+
+class ConversationItemAnnotationSerializer(DocumentAnnotationSerializer):
+    
+    class Meta:
+        model = ConversationItemAnnotation
+        fields = ('id', 'prob', 'label', 'start_offset', 'end_offset', 'user', 'document')
+        read_only_fields = ('user', )
 
 
 class RoleSerializer(serializers.ModelSerializer):
